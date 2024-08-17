@@ -2,6 +2,11 @@
 #include <winternl.h>
 #include <stdio.h>
 
+/*
+	Partial credits: https://stackoverflow.com/a/40217846
+	and Louis Bernard in the comments.
+*/
+
 NTSTATUS(*ZWQuerySystemInformation)(ULONG, PVOID, ULONG, PULONG) = nullptr;
 
 #define BOOTMGFW_PATH "EFI\\Microsoft\\Boot\\bootmgfw.efi"
