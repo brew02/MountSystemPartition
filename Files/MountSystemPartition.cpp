@@ -10,6 +10,7 @@
 NTSTATUS(*ZWQuerySystemInformation)(ULONG, PVOID, ULONG, PULONG) = nullptr;
 
 #define BOOTMGFW_PATH "EFI\\Microsoft\\Boot\\bootmgfw.efi"
+#define SYSTEM_SYSTEM_PARTITION_INFORMATION 0x62
 
 struct SystemSystemPartitionInformation
 {
@@ -17,6 +18,11 @@ struct SystemSystemPartitionInformation
 	wchar_t buffer[32];
 };
 
+/*
+	Finds an available volume mount point using GetLogicalDrives.
+
+	@return A string containing the volume mount point if success, nullptr otherwise
+*/
 char* GetVolumeMountPoint()
 {
 	static char driveString[4] = "A:\\";
@@ -45,6 +51,11 @@ char* GetVolumeMountPoint()
 	return driveString;
 }
 
+/*
+	Finds NTDLL functions not contained in the Windows SDK.
+
+	@return True if the functions were found, false otherwise
+*/
 bool FindNTDLLFunctions()
 {
 	HMODULE ntdll = LoadLibraryA("ntdll.dll");
@@ -66,11 +77,16 @@ bool FindNTDLLFunctions()
 	return true;
 }
 
+/*
+	Opens a handle to the system partition volume.
+
+	@return A handle to the system partition volume if success, INVALID_HANDLE_VALUE otherwise
+*/
 HANDLE OpenSystemPartitionVolume()
 {
 	SystemSystemPartitionInformation info{ 0 };
 	ULONG returnLength = 0;
-	NTSTATUS status = ZWQuerySystemInformation(0x62, &info, sizeof(info), &returnLength);
+	NTSTATUS status = ZWQuerySystemInformation(SYSTEM_SYSTEM_PARTITION_INFORMATION, &info, sizeof(info), &returnLength);
 
 	if (NT_ERROR(status))
 	{
@@ -97,11 +113,23 @@ HANDLE OpenSystemPartitionVolume()
 	return file;
 }
 
+/*
+	Unmounts the system partition.
+
+	@return True if the system partition is unmounted, false otherwise
+*/
 bool UnMountSystemPartition()
 {
 	return DeleteVolumeMountPointA(GetVolumeMountPoint());
 }
 
+/*
+	Mounts a volume using the specified partitionInfo.
+
+	@param partitionInfo - The partition information to use for mounting the volume
+
+	@return True if the volume is mounted, false otherwise
+*/
 bool MountVolume(PARTITION_INFORMATION_EX* partitionInfo)
 {
 	char volumeName[256]{ 0 };
@@ -134,6 +162,11 @@ bool MountVolume(PARTITION_INFORMATION_EX* partitionInfo)
 	return true;
 }
 
+/*
+	Mounts the system partition.
+
+	@return True if the system partition is mounted, false otherwise
+*/
 bool MountSystemPartition()
 {
 	if (!FindNTDLLFunctions())
@@ -164,6 +197,11 @@ bool MountSystemPartition()
 	return MountVolume(&partitionInfo);
 }
 
+/*
+	Opens a handle to the bootmgfw.efi file located on the system partition.
+
+	@return A handle to the bootmgfw.efi file if success, INVALID_HANDLE_VALUE otherwise
+*/
 HANDLE OpenBootmgfw()
 {
 	char* volume = GetVolumeMountPoint();
@@ -195,6 +233,11 @@ HANDLE OpenBootmgfw()
 	return file;
 }
 
+/*
+	The main entry point of the program.
+
+	@return 0 if success, -1 otherwise
+*/
 int main()
 {
 	if (!MountSystemPartition())
